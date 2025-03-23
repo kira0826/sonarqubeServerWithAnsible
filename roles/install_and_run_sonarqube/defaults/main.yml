@@ -1,0 +1,6 @@
+sonarqube_version: "9.9.1.69595"
+sonarqube_home: "/opt/sonarqube"
+postgres_username: "sonarqube"
+postgres_password: "sonarqube"
+postgres_db: "sonarqube"
+ansible_user: "sonarqube"

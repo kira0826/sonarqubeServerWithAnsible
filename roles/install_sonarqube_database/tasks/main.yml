@@ -1,0 +1,60 @@
+- name: Install PostgreSQL
+  apt:
+    name: postgresql  # Install PostgreSQL package
+    state: present    # Ensure it is installed
+    update_cache: yes # Update the package cache before installing
+
+- name: Ensure PostgreSQL service is running
+  service:
+    name: postgresql  # Name of the service
+    state: started     # Ensure the service is running
+    enabled: yes       # Enable the service to start on boot
+
+- name: Install python3-psycopg2
+  apt:
+    name: python3-psycopg2  # Install psycopg2 (required for PostgreSQL modules in Ansible)
+    state: present          # Ensure it is installed
+    update_cache: yes       # Update the package cache before installing
+
+- name: Create sonarqube user on PostgreSQL
+  become: yes  # Run as root
+  command: >
+    sudo -u postgres sh -c "cd /tmp && psql -c \"CREATE USER sonarqube WITH PASSWORD 'sonarqube' CREATEDB LOGIN;\""
+  args:
+    creates: /var/lib/postgresql/.pgpass  # Prevent task from running if the user already exists
+  register: create_user_result            # Store the result of the command
+  ignore_errors: yes                      # Ignore errors if the user already exists
+  changed_when: "'already exists' not in create_user_result.stderr"  # Mark as changed only if the user was created
+
+- name: Create sonarqube database on PostgreSQL
+  become: yes  # Run as root
+  command: >
+    sudo -u postgres sh -c "cd /tmp && psql -c \"CREATE DATABASE sonarqube OWNER sonarqube;\""
+  args:
+    creates: /var/lib/postgresql/.pgpass  # Prevent task from running if the database already exists
+  register: create_db_result              # Store the result of the command
+  ignore_errors: yes                      # Ignore errors if the database already exists
+  changed_when: "'already exists' not in create_db_result.stderr"  # Mark as changed only if the database was created
+
+- name: Create empty schema for SonarQube
+  become: yes  # Run as root
+  command: >
+    sudo -u postgres sh -c "cd /tmp && psql -d sonarqube -c \"CREATE SCHEMA sonarqube AUTHORIZATION sonarqube;\""
+  args:
+    creates: /var/lib/postgresql/.pgpass  # Prevent task from running if the schema already exists
+  register: create_schema_result          # Store the result of the command
+  ignore_errors: yes                      # Ignore errors if the schema already exists
+  changed_when: "'already exists' not in create_schema_result.stderr"  # Mark as changed only if the schema was created
+
+- name: Grant permissions to sonarqube user on the schema
+  become: yes  # Run as root
+  command: >
+    sudo -u postgres sh -c "cd /tmp && psql -d sonarqube -c \"
+      GRANT ALL PRIVILEGES ON SCHEMA sonarqube TO sonarqube;
+      GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA sonarqube TO sonarqube;
+      GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA sonarqube TO sonarqube;\""
+  args:
+    creates: /var/lib/postgresql/.pgpass  # Prevent task from running if permissions are already granted
+  register: grant_permissions_result      # Store the result of the command
+  ignore_errors: yes                      # Ignore errors if permissions already exist
+  changed_when: "'already exists' not in grant_permissions_result.stderr"  # Mark as changed only if permissions were granted                                 

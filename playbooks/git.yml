@@ -1,0 +1,7 @@
+---
+- name: Clone repo
+  hosts: azure_vm
+  become: true
+
+  roles:
+    - git_install

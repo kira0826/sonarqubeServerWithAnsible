@@ -1,0 +1,74 @@
+      
+- name: Download SonarQube
+  get_url:
+    url: "https://binaries.sonarsource.com/Distribution/sonarqube/sonarqube-{{ sonarqube_version }}.zip"
+    dest: "/tmp/sonarqube-{{ sonarqube_version }}.zip"
+- name: Ensure SonarQube directory exists
+  file:
+    path: "{{ sonarqube_home }}"
+    state: directory
+    mode: '0755'
+
+- name: Install required packages for unzipping
+  apt:
+    name:
+      - unzip  
+    state: present
+    update_cache: yes
+
+- name: Unzip SonarQube
+  unarchive:
+    src: "/tmp/sonarqube-{{ sonarqube_version }}.zip"
+    dest: "{{ sonarqube_home }}"
+    remote_src: yes
+    creates: "{{ sonarqube_home }}/sonarqube-{{ sonarqube_version }}"  # Evita descomprimir si ya existe
+
+- name: Rename SonarQube directory
+  command: >
+    mv {{ sonarqube_home }}/sonarqube-{{ sonarqube_version }} {{ sonarqube_home }}/sonarqube
+  args:
+    creates: "{{ sonarqube_home }}/sonarqube"  # Evita renombrar si ya existe
+
+- name: Configure sonar.properties
+  lineinfile:
+    path: "{{ sonarqube_home }}/sonarqube/conf/sonar.properties"
+    regexp: "^{{ item.key }}="  # Busca la línea que comienza con la clave
+    line: "{{ item.key }}={{ item.value }}"  # Define la línea completa
+    create: yes  # Crea el archivo si no existe
+    state: present
+  loop:
+    - { key: "sonar.jdbc.username", value: "{{ postgres_username }}" }
+    - { key: "sonar.jdbc.password", value: "{{ postgres_password }}" }
+    - { key: "sonar.jdbc.url", value: "jdbc:postgresql://localhost/{{ postgres_db }}" }
+
+- name: Set permissions for SonarQube directory
+  become: yes
+  file:
+    path: "{{ sonarqube_home }}/sonarqube"
+    mode: '0777'
+    recurse: yes  # Aplica los permisos recursivamente
+
+# Set vm max for elastic search
+- name: Set vm.max_map_count for current session
+  become: yes
+  command: sysctl -w vm.max_map_count=262144
+
+- name: Persist vm.max_map_count setting
+  become: yes
+  lineinfile:
+    path: /etc/sysctl.conf
+    regexp: "^vm.max_map_count"
+    line: "vm.max_map_count=262144"
+    create: yes
+
+- name: Reload sysctl settings
+  become: yes
+  command: sysctl -p
+
+- name: Start SonarQube
+  become: yes
+  become_user: azureuser # Must select the owner user to perform the command  
+  command: >
+    {{ sonarqube_home }}/sonarqube/bin/linux-x86-64/sonar.sh start
+  args:
+    chdir: "{{ sonarqube_home }}/sonarqube/bin/linux-x86-64"

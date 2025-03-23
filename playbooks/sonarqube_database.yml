@@ -1,0 +1,8 @@
+---
+- name: Configuration SonarQube database
+  hosts: azure_vm
+  become: true
+
+  roles:
+    - install_sonarqube_database
+    

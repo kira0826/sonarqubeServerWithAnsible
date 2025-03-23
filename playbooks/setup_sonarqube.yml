@@ -1,0 +1,7 @@
+---
+- name: Configuration and deploymen of SonarQube Server
+  hosts: azure_vm
+  become: true
+
+  roles:
+    - install_and_run_sonarqube

@@ -1,0 +1,7 @@
+---
+- name: Set up Java JDK
+  hosts: azure_vm
+  become: true
+
+  roles:
+    - setup_java

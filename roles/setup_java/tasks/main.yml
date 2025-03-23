@@ -1,0 +1,5 @@
+- name: Install Java JDK
+  apt:
+    name: "openjdk-17-jdk"  # Instala el JDK de la versión especificada
+    state: present
+    update_cache: yes

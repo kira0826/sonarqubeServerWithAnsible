@@ -1,0 +1,9 @@
+---
+- name: Run all roles
+  hosts: azure_vm 
+  become: true
+  roles:
+    - setup_java
+    - install_sonarqube_database
+    - install_and_run_sonarqube
+    - git_install
